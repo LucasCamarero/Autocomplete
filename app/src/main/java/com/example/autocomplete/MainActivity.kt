@@ -1,7 +1,9 @@
 package com.example.autocomplete
 
+import android.R.attr.query
 import android.content.Intent
 import android.os.Bundle
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.activity.ComponentActivity
@@ -20,6 +22,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -136,7 +139,7 @@ fun Ventana() {
     }
 }
 
-
+// Pide permiso para el micrófono
 @Composable
 fun pedirPermiso() {
     var resultado = ""
@@ -160,4 +163,41 @@ fun pedirPermiso() {
         }
     }
 
+    var escuchando by remember{mutableStateOf(true)}
+
+    DisposableEffect(Unit) {
+        val listener = object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                resultado = "Escuchando..."
+            }
+
+            override fun onResults(results: Bundle?) {
+                val texto = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                texto?.let {
+                    query = it
+                    resultado = "Dijiste: $it"
+                }
+                escuchando = false
+            }
+
+
+            override fun onError(error: Int) {
+                resultado = "Error: $error"
+                escuchando = false
+            }
+
+            override fun onEndOfSpeech() {}
+            override fun onBeginningOfSpeech() {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onRmsChanged(rmsdB: Float) {}
+        }
+        speechRecognizer.setRecognitionListener(listener)
+
+
+        onDispose {
+            speechRecognizer.destroy()
+        }
+    }
 }
