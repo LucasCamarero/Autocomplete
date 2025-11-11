@@ -1,7 +1,8 @@
 package com.example.autocomplete
 
-import android.R.attr.query
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -29,9 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.autocomplete.ui.theme.AutocompleteTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,12 +44,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AutocompleteTheme {
-                Ventana()
+                //Ventana()
+                SearchBarWithVoice()
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,18 +145,26 @@ fun Ventana() {
 }
 
 // Pide permiso para el micrófono
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun pedirPermiso() {
-    var resultado = ""
+fun SearchBarWithVoice() {
+    val context = LocalContext.current
+
+    var query by remember { mutableStateOf("") }
+    var active by remember { mutableStateOf(false) }
+    var escuchando by remember { mutableStateOf(false) }
+    var resultado by remember { mutableStateOf("") }
+
+    // ✅ Pedir permiso de micrófono
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
+    ) { granted ->
+        if (!granted) {
             resultado = "Permiso de micrófono denegado"
         }
     }
 
-    val context = LocalContext.current
+    // Configurar SpeechRecognizer
     val speechRecognizer = remember {
         SpeechRecognizer.createSpeechRecognizer(context)
     }
@@ -162,8 +175,6 @@ fun pedirPermiso() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
         }
     }
-
-    var escuchando by remember{mutableStateOf(true)}
 
     DisposableEffect(Unit) {
         val listener = object : RecognitionListener {
@@ -180,7 +191,6 @@ fun pedirPermiso() {
                 escuchando = false
             }
 
-
             override fun onError(error: Int) {
                 resultado = "Error: $error"
                 escuchando = false
@@ -195,9 +205,79 @@ fun pedirPermiso() {
         }
         speechRecognizer.setRecognitionListener(listener)
 
-
         onDispose {
             speechRecognizer.destroy()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SearchBar(
+            query = query,
+            onQueryChange = { query = it },
+            onSearch = { active = false },
+            active = active,
+            onActiveChange = { active = it },
+            placeholder = { Text("Buscar...") },
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        val permissionCheck = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.RECORD_AUDIO
+                        )
+                        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        } else {
+                            if (!escuchando) {
+                                speechRecognizer.startListening(intent)
+                                escuchando = true
+                            } else {
+                                speechRecognizer.stopListening()
+                                escuchando = false
+                            }
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (escuchando) Icons.Default.PlayArrow else Icons.Default.Phone,
+                        contentDescription = "Micrófono",
+                        tint = if (escuchando) Color.Red else Color.Gray
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val suggestions = listOf(
+                "Kotlin", "Android", "Jetpack Compose",
+                "MiniSearch", "IntelliJ IDEA", "IA local",
+                "TextField", "DropdownMenu"
+            )
+
+            val filtered = if (query.isNotBlank()) {
+                suggestions.filter { it.contains(query, ignoreCase = true) }
+            } else emptyList()
+
+            filtered.forEach { suggestion ->
+                Text(
+                    text = suggestion,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            query = suggestion
+                            active = false
+                        }
+                        .padding(8.dp)
+                )
+            }
+        }
+
+        if (resultado.isNotBlank()) {
+            Text(
+                text = resultado,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 8.dp),
+                color = Color.Gray
+            )
         }
     }
 }
