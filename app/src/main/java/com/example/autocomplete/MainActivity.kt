@@ -1,6 +1,5 @@
 package com.example.autocomplete
 
-import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
@@ -30,13 +30,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.autocomplete.ui.theme.AutocompleteTheme
-import androidx.compose.material.icons.Icons
+import android.Manifest
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PlayArrow
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,8 +48,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AutocompleteTheme {
-                //Ventana()
-                SearchBarWithVoice()
+                Ventana()
             }
         }
     }
@@ -54,12 +57,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Ventana() {
-    var lista = listOf<String>("Hola", "Adios", "Coca cola")
-    var frase by remember { mutableStateOf("") }
-    var listaSugerencias = remember { mutableListOf<String>() }
-    //var listaSugerencias by remember { mutableStateOf(listOf<String>()) }
 
-    // Ejemplo de autocompletado hecho a mano
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -67,48 +65,70 @@ fun Ventana() {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        AutocompletadoArtesanal()
 
-        Text(
-            "Búsqueda de sugerencias",
+        SearchBar()
+
+        SearchBarWithVoice()
+    }
+}
+
+// Autocompletado hecho con diferentes composables
+@Composable
+fun AutocompletadoArtesanal() {
+    var lista = listOf<String>("Hola", "Adios", "Coca cola")
+    var frase by remember { mutableStateOf("") }
+    var listaSugerencias = remember { mutableListOf<String>() }
+    //var listaSugerencias by remember { mutableStateOf(listOf<String>()) }
+
+    Text(
+        "Búsqueda de sugerencias",
+        modifier = Modifier
+            .padding(bottom = 10.dp),
+        style = MaterialTheme.typography.titleMedium
+    )
+
+    Column {
+        TextField(
+            value = frase,
+            onValueChange = { texto ->
+                frase = texto
+
+                if (texto.isNotBlank()) {
+                    listaSugerencias.clear()
+                    listaSugerencias.addAll(
+                        lista.filter { it.contains(texto, ignoreCase = true) }
+                    )
+                } else {
+                    listaSugerencias.clear()
+                }
+            },
+            label = {Text("Buscar")},
             modifier = Modifier
-                .padding(bottom = 10.dp),
-            style = MaterialTheme.typography.titleMedium
+                .fillMaxWidth()
+                .padding(bottom = 10.dp)
         )
 
-        Column {
-            TextField(
-                value = frase,
-                onValueChange = { texto ->
-                    frase = texto
-
-                    if (texto.isNotBlank()) {
-                        listaSugerencias.clear()
-                        listaSugerencias.addAll(
-                            lista.filter { it.contains(texto, ignoreCase = true) }
-                        )
-                    } else {
-                        listaSugerencias.clear()
-                    }
-                },
-                label = {Text("Buscar")},
+        listaSugerencias.forEach { texto ->
+            Text(
+                texto,
                 modifier = Modifier
-                    .fillMaxWidth()
                     .padding(bottom = 10.dp)
+                    .clickable{frase = texto
+                        listaSugerencias.clear()},
+                style = MaterialTheme.typography.titleMedium
             )
-
-            listaSugerencias.forEach { texto ->
-                Text(
-                    texto,
-                    modifier = Modifier
-                        .padding(bottom = 10.dp)
-                        .clickable{frase = texto
-                            listaSugerencias.clear()},
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
         }
+    }
+}
 
-        // Ejemplo de autocompletado con SearchBar
+//Autocompletado hecho con SearchBar
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchBar() {
+    Column {
+        var lista = listOf<String>("Hola", "Adios", "Coca cola")
+        var listaSugerencias = remember { mutableListOf<String>() }
         var query by remember{mutableStateOf("")}
         var active by remember{mutableStateOf(false)}
 
@@ -144,18 +164,17 @@ fun Ventana() {
     }
 }
 
-// Pide permiso para el micrófono
+// Autocompletado con SearchBar y permiso de micrófono (NO ENTRA EN EXAMEN EL MICROFONO)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBarWithVoice() {
     val context = LocalContext.current
-
     var query by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
     var escuchando by remember { mutableStateOf(false) }
     var resultado by remember { mutableStateOf("") }
 
-    // ✅ Pedir permiso de micrófono
+    // Pedir permiso de micrófono
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -247,9 +266,7 @@ fun SearchBarWithVoice() {
             modifier = Modifier.fillMaxWidth()
         ) {
             val suggestions = listOf(
-                "Kotlin", "Android", "Jetpack Compose",
-                "MiniSearch", "IntelliJ IDEA", "IA local",
-                "TextField", "DropdownMenu"
+                "Hola", "Adios", "Coca cola"
             )
 
             val filtered = if (query.isNotBlank()) {
